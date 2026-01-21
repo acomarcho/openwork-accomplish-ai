@@ -1339,6 +1339,14 @@ export function registerIPCHandlers(): void {
         };
       });
 
+      if (models.length === 0) {
+        return { success: false, error: 'No models configured on LiteLLM server' };
+      }
+
+      if (sanitizedApiKey) {
+        storeApiKey('litellm', sanitizedApiKey);
+      }
+
       console.log(`[LiteLLM] Connection successful, found ${models.length} models`);
       return { success: true, models };
     } catch (error) {

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
+import { getAccomplish } from '@/lib/accomplish';
 import type { ConnectedProvider, LiteLLMCredentials } from '@accomplish/shared';
 import {
   ModelSelector,
@@ -34,6 +35,7 @@ export function LiteLLMProviderForm({
   const [apiKey, setApiKey] = useState('');
   const [connecting, setConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [availableModels, setAvailableModels] = useState<Array<{ id: string; name: string }>>([]);
 
   const isConnected = connectedProvider?.connectionStatus === 'connected';
 
@@ -42,7 +44,21 @@ export function LiteLLMProviderForm({
     setError(null);
 
     try {
-      // For now, just create a placeholder connected state
+      const accomplish = getAccomplish();
+      const result = await accomplish.testLiteLLMConnection(serverUrl, apiKey);
+
+      if (!result.success) {
+        setError(result.error || 'Connection failed');
+        setConnecting(false);
+        return;
+      }
+
+      const models = result.models?.map(m => ({
+        id: m.id,
+        name: m.name || m.id,
+      })) || [];
+      setAvailableModels(models);
+
       const provider: ConnectedProvider = {
         providerId: 'litellm',
         connectionStatus: 'connected',
@@ -51,10 +67,10 @@ export function LiteLLMProviderForm({
           type: 'litellm',
           serverUrl,
           hasApiKey: !!apiKey.trim(),
-          keyPrefix: apiKey.trim() ? apiKey.trim().substring(0, 10) + '...' : undefined,
+          keyPrefix: apiKey.trim() ? `${apiKey.trim().substring(0, 10)}...` : undefined,
         } as LiteLLMCredentials,
         lastConnectedAt: new Date().toISOString(),
-        availableModels: [],
+        availableModels: models,
       };
 
       onConnect(provider);
@@ -66,7 +82,7 @@ export function LiteLLMProviderForm({
     }
   };
 
-  const models = connectedProvider?.availableModels || [];
+  const models = connectedProvider?.availableModels || availableModels;
 
   return (
     <div className="rounded-xl border border-border bg-card p-5" data-testid="provider-settings-panel">
