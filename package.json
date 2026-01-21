@@ -11,11 +11,25 @@
   },
   "scripts": {
     "dev": "pnpm -F @accomplish/desktop dev",
+    "dev:clean": "pnpm -F @accomplish/desktop dev:clean",
     "build": "pnpm -r build",
     "build:desktop": "pnpm -F @accomplish/desktop build",
     "lint": "pnpm -r lint",
     "typecheck": "pnpm -r typecheck",
-    "clean": "pnpm -r clean && rm -rf node_modules"
+    "clean": "pnpm -r clean && rm -rf node_modules",
+    "test": "pnpm -F @accomplish/desktop test",
+    "test:unit": "pnpm -F @accomplish/desktop test:unit",
+    "test:integration": "pnpm -F @accomplish/desktop test:integration",
+    "test:coverage": "pnpm -F @accomplish/desktop test:coverage",
+    "test:watch": "pnpm -F @accomplish/desktop test:watch",
+    "test:e2e": "pnpm -F @accomplish/desktop test:e2e:native",
+    "test:e2e:ui": "pnpm -F @accomplish/desktop test:e2e:native:ui",
+    "test:e2e:debug": "pnpm -F @accomplish/desktop test:e2e:native:debug",
+    "test:e2e:fast": "pnpm -F @accomplish/desktop test:e2e:native:fast",
+    "test:e2e:integration": "pnpm -F @accomplish/desktop test:e2e:native:integration",
+    "test:e2e:build": "pnpm -F @accomplish/desktop test:e2e:build",
+    "test:e2e:clean": "pnpm -F @accomplish/desktop test:e2e:clean",
+    "test:e2e:report": "pnpm -F @accomplish/desktop test:e2e:report"
   },
   "engines": {
     "node": ">=20.0.0",
