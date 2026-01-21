@@ -1180,6 +1180,8 @@ interface MessageBubbleProps {
   isLoading?: boolean;
 }
 
+const COPIED_STATE_DURATION_MS = 1000
+
 // Memoized MessageBubble to prevent unnecessary re-renders and markdown re-parsing
 const MessageBubble = memo(function MessageBubble({ message, shouldStream = false, isLastMessage = false, isRunning = false, showContinueButton = false, continueLabel, onContinue, isLoading = false }: MessageBubbleProps) {
   const [streamComplete, setStreamComplete] = useState(!shouldStream);
@@ -1220,13 +1222,12 @@ const MessageBubble = memo(function MessageBubble({ message, shouldStream = fals
 
       timeoutRef.current = setTimeout(() => {
         setCopied(false);
-      }, 2000);
+      }, COPIED_STATE_DURATION_MS);
     } catch (error) {
       console.error('Failed to copy to clipboard:', error);
     }
   }, [message.content]);
 
-  // Determine if copy button should be shown
   const showCopyButton = !isTool && !(isAssistant && showContinueButton);
 
   const proseClasses = cn(
@@ -1344,12 +1345,12 @@ const MessageBubble = memo(function MessageBubble({ message, shouldStream = fals
               className={cn(
                 'opacity-0 group-hover:opacity-100 transition-all duration-200 relative',
                 'p-1 rounded hover:bg-accent',
-                'text-muted-foreground hover:text-foreground',
                 'shrink-0 mt-1',
                 isAssistant ? 'self-start' : 'self-end',
-                copied && 'bg-green-500/10 text-green-600 hover:bg-green-500/20'
+                !copied && 'text-muted-foreground hover:text-foreground',
+                copied && '!bg-green-500/10 !text-green-600 !hover:bg-green-500/20'
               )}
-              aria-label={copied ? 'Message copied to clipboard' : 'Copy message to clipboard'}
+              aria-label={'Copy to clipboard'}
             >
               <Check className={cn("absolute h-4 w-4", !copied && 'hidden')} />
               <Copy className={cn("absolute h-4 w-4", copied && 'hidden')} />
