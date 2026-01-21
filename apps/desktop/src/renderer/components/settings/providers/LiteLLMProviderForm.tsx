@@ -54,7 +54,7 @@ export function LiteLLMProviderForm({
       }
 
       const models = result.models?.map(m => ({
-        id: m.id,
+        id: `litellm/${m.id}`,
         name: m.name || m.id,
       })) || [];
       setAvailableModels(models);
