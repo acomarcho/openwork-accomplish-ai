@@ -1342,6 +1342,7 @@ const MessageBubble = memo(function MessageBubble({ message, shouldStream = fals
               variant="ghost"
               size="icon-sm"
               onClick={handleCopy}
+              data-testid="message-copy-button"
               className={cn(
                 'opacity-0 group-hover:opacity-100 transition-all duration-200 relative',
                 'p-1 rounded hover:bg-accent',
