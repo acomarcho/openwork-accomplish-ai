@@ -2,7 +2,7 @@ import { app } from 'electron';
 import path from 'path';
 import fs from 'fs';
 import { PERMISSION_API_PORT, QUESTION_API_PORT } from '../permission-api';
-import { getOllamaConfig } from '../store/appSettings';
+import { getOllamaConfig, getLMStudioConfig } from '../store/appSettings';
 import { getApiKey } from '../store/secureStorage';
 import { getProviderSettings, getActiveProviderModel, getConnectedProviderIds } from '../store/providerSettings';
 import { ensureAzureFoundryProxy } from './azure-foundry-proxy';
@@ -350,7 +350,21 @@ interface ZaiProviderConfig {
   models: Record<string, ZaiProviderModelConfig>;
 }
 
-type ProviderConfig = OllamaProviderConfig | BedrockProviderConfig | AzureFoundryProviderConfig | OpenRouterProviderConfig | LiteLLMProviderConfig | ZaiProviderConfig;
+interface LMStudioProviderModelConfig {
+  name: string;
+  tools?: boolean;
+}
+
+interface LMStudioProviderConfig {
+  npm: string;
+  name: string;
+  options: {
+    baseURL: string;
+  };
+  models: Record<string, LMStudioProviderModelConfig>;
+}
+
+type ProviderConfig = OllamaProviderConfig | BedrockProviderConfig | AzureFoundryProviderConfig | OpenRouterProviderConfig | LiteLLMProviderConfig | ZaiProviderConfig | LMStudioProviderConfig;
 
 interface OpenCodeConfig {
   $schema?: string;
@@ -464,10 +478,12 @@ export async function generateOpenCodeConfig(azureFoundryToken?: string): Promis
     ollama: 'ollama',
     openrouter: 'openrouter',
     litellm: 'litellm',
+    minimax: 'minimax',
+    lmstudio: 'lmstudio',
   };
 
   // Build enabled providers list from new settings or fall back to base providers
-  const baseProviders = ['anthropic', 'openai', 'openrouter', 'google', 'xai', 'deepseek', 'zai-coding-plan', 'amazon-bedrock'];
+  const baseProviders = ['anthropic', 'openai', 'openrouter', 'google', 'xai', 'deepseek', 'zai-coding-plan', 'amazon-bedrock', 'minimax'];
   let enabledProviders = baseProviders;
 
   // If we have connected providers in the new settings, use those
@@ -650,6 +666,60 @@ export async function generateOpenCodeConfig(azureFoundryToken?: string): Promis
         },
       };
       console.log('[OpenCode Config] LiteLLM configured:', litellmProvider.selectedModelId, litellmApiKey ? '(with API key)' : '(no API key)');
+    }
+  }
+
+  // Configure LM Studio if connected
+  const lmstudioProvider = providerSettings.connectedProviders.lmstudio;
+  if (lmstudioProvider?.connectionStatus === 'connected' && lmstudioProvider.credentials.type === 'lmstudio') {
+    if (lmstudioProvider.selectedModelId) {
+      // OpenCode CLI splits "lmstudio/model" into provider="lmstudio" and modelID="model"
+      // So we need to register the model without the "lmstudio/" prefix
+      const modelId = lmstudioProvider.selectedModelId.replace(/^lmstudio\//, '');
+
+      // Check if the model supports tools from the availableModels metadata
+      const modelInfo = lmstudioProvider.availableModels?.find(
+        m => m.id === lmstudioProvider.selectedModelId || m.id === modelId
+      );
+      const supportsTools = (modelInfo as { toolSupport?: string })?.toolSupport === 'supported';
+
+      providerConfig.lmstudio = {
+        npm: '@ai-sdk/openai-compatible',
+        name: 'LM Studio',
+        options: {
+          baseURL: `${lmstudioProvider.credentials.serverUrl}/v1`,
+        },
+        models: {
+          [modelId]: {
+            name: modelId,
+            tools: supportsTools,
+          },
+        },
+      };
+      console.log(`[OpenCode Config] LM Studio configured: ${modelId} (tools: ${supportsTools})`);
+    }
+  } else {
+    // Legacy fallback: use old LM Studio config if it exists
+    const lmstudioConfig = getLMStudioConfig();
+    if (lmstudioConfig?.enabled && lmstudioConfig.models && lmstudioConfig.models.length > 0) {
+      const lmstudioModels: Record<string, LMStudioProviderModelConfig> = {};
+      for (const model of lmstudioConfig.models) {
+        lmstudioModels[model.id] = {
+          name: model.name,
+          tools: model.toolSupport === 'supported',
+        };
+      }
+
+      providerConfig.lmstudio = {
+        npm: '@ai-sdk/openai-compatible',
+        name: 'LM Studio',
+        options: {
+          baseURL: `${lmstudioConfig.baseUrl}/v1`,
+        },
+        models: lmstudioModels,
+      };
+
+      console.log('[OpenCode Config] LM Studio configured from legacy settings:', Object.keys(lmstudioModels));
     }
   }
 
@@ -869,6 +939,15 @@ export async function syncApiKeysToOpenCodeAuth(): Promise<void> {
       auth['zai-coding-plan'] = { type: 'api', key: apiKeys.zai };
       updated = true;
       console.log('[OpenCode Auth] Synced Z.AI Coding Plan API key');
+    }
+  }
+
+  // Sync MiniMax API key
+  if (apiKeys.minimax) {
+    if (!auth.minimax || auth.minimax.key !== apiKeys.minimax) {
+      auth.minimax = { type: 'api', key: apiKeys.minimax };
+      updated = true;
+      console.log('[OpenCode Auth] Synced MiniMax API key');
     }
   }
 
